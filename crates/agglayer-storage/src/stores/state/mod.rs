@@ -1,16 +1,23 @@
-use std::{collections::{BTreeMap, VecDeque}, path::Path, sync::Arc};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    path::Path,
+    sync::Arc,
+};
 
 use agglayer_types::{
     Certificate, CertificateHeader, CertificateId, CertificateIndex, CertificateStatus,
     EpochNumber, Hash, Height, Keccak256Hasher, LocalNetworkStateData, NetworkId,
 };
 use pessimistic_proof::{
-    local_balance_tree::LOCAL_BALANCE_TREE_DEPTH, local_exit_tree::LocalExitTree, nullifier_tree::NULLIFIER_TREE_DEPTH, utils::smt::{Node, Smt}
+    local_balance_tree::LOCAL_BALANCE_TREE_DEPTH,
+    local_exit_tree::LocalExitTree,
+    nullifier_tree::NULLIFIER_TREE_DEPTH,
+    utils::smt::{Node, Smt},
 };
 use rocksdb::{Direction, ReadOptions};
 use tracing::warn;
 
-use self::LET::LocalExitTreePerNetworkColumn;
+use self::LET::{LocalExitTreePerNetworkColumn, Prefix};
 use super::{MetadataReader, MetadataWriter, StateReader, StateWriter};
 use crate::{
     columns::{
@@ -182,6 +189,7 @@ impl StateWriter for StateStore {
             let start_leaf_count = new_leaf_count - new_leaves.len() as u32;
 
             if let Some(stored_exit_tree) = self.read_local_exit_tree(network_id.into())? {
+                println!("stored: {:?}", stored_exit_tree);
                 if stored_exit_tree.leaf_count != start_leaf_count {
                     return Err(Error::InconsistentState {
                         network_id: network_id.into(),
@@ -193,25 +201,19 @@ impl StateWriter for StateStore {
             let atomic_batch_write = {
                 let mut writes = BTreeMap::new();
 
-                // Write new leaf count
-                writes.insert(
-                    LET::Key {
-                        network_id,
-                        key_type: LET::KeyType::LeafCount,
-                    },
-                    LET::Value::LeafCount(new_leaf_count),
-                );
-
+                println!("write lns range: {:?}", (start_leaf_count..new_leaf_count));
                 // Write new leaves
                 (start_leaf_count..new_leaf_count)
                     .zip(new_leaves.iter())
                     .for_each(|(index, leaf)| {
+                        println!("write leaf index:{index} leaf:{leaf}");
                         writes.insert(
                             LET::Key {
                                 network_id,
-                                key_type: LET::KeyType::Leaf(index),
+                                layer: 0u32,
+                                index,
                             },
-                            LET::Value::Leaf(*leaf.as_bytes()),
+                            Hash(*leaf.as_bytes()),
                         );
                     });
 
@@ -220,9 +222,10 @@ impl StateWriter for StateStore {
                     writes.insert(
                         LET::Key {
                             network_id,
-                            key_type: LET::KeyType::Frontier(layer),
+                            layer,
+                            index: 0u32,
                         },
-                        LET::Value::Frontier(new_state.exit_tree.frontier[layer as usize]),
+                        Hash(new_state.exit_tree.frontier[(layer - 1) as usize]),
                     );
                 });
 
@@ -297,35 +300,74 @@ impl StateStore {
         &self,
         network_id: NetworkId,
     ) -> Result<Option<LocalExitTree<Keccak256Hasher>>, Error> {
-        let leaf_count = if let Some(leaf_count_value) =
-            self.db.get::<LocalExitTreePerNetworkColumn>(&LET::Key {
-                network_id: network_id.into(),
-                key_type: LET::KeyType::LeafCount,
-            })? {
-            match leaf_count_value {
-                LET::Value::LeafCount(leaf_count) => leaf_count,
-                _ => return Err(Error::InconsistentFrontier),
-            }
-        } else {
+        let iter = self
+            .db
+            .prefix_iterator_with_direction::<LocalExitTreePerNetworkColumn, Prefix>(
+                &Prefix {
+                    network_id: *network_id,
+                    layer: 0,
+                },
+                Direction::Reverse,
+            )?;
+
+        for v in iter {
+            println!("saw {:?}", v);
+        }
+        println!("done");
+
+        let prefix = Prefix {
+            network_id: *network_id,
+            layer: 0,
+        };
+        let Some(leaf_count) = self
+            .db
+            .prefix_iterator_with_direction::<LocalExitTreePerNetworkColumn, Prefix>(
+                &prefix,
+                Direction::Reverse,
+            )?
+            .filter_map(|v| v.ok())
+            .filter(
+                |(
+                    LET::Key {
+                        network_id,
+                        layer,
+                        index: _,
+                    },
+                    _,
+                )| {
+                    prefix
+                        == Prefix {
+                            network_id: *network_id,
+                            layer: *layer,
+                        }
+                },
+            )
+            .map(|k| k.0.index + 1)
+            .next()
+        else {
+            println!("none with current prefix");
             return Ok(None);
         };
 
-        let retrieved_frontier: Vec<_> = self
+        let mut frontier = [[0u8; 32]; 32];
+        let retrieved_frontier = self
             .db
-            .multi_get::<LocalExitTreePerNetworkColumn>((1..32).map(|layer| LET::Key {
+            .multi_get::<LocalExitTreePerNetworkColumn>((1..=32).map(|layer| LET::Key {
                 network_id: network_id.into(),
-                key_type: LET::KeyType::Frontier(layer),
+                layer,
+                index: 0,
             }))?
             .iter()
             .map(|v| match v {
-                Some(LET::Value::Frontier(hash)) => Ok(*hash),
+                Some(hash) => Ok(*hash),
                 _ => Err(Error::InconsistentFrontier),
             })
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<Vec<_>, _>>()?;
 
-        let mut frontier = [[0u8; 32]; 32];
-        for (i, l) in retrieved_frontier.iter().enumerate() {
-            frontier[i] = *l;
+        println!("retrieved: {:?}", retrieved_frontier);
+
+        for (i, &l) in retrieved_frontier.iter().enumerate() {
+            frontier[i] = l.0;
         }
 
         Ok(Some(LocalExitTree::<Keccak256Hasher> {

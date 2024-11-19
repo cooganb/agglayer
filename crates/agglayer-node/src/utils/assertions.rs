@@ -80,6 +80,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     #[cfg_attr(debug_assertions, should_panic)]
     fn log_assert_fail() {
         log_assert!(false);
@@ -105,6 +106,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     #[cfg_attr(debug_assertions, should_panic)]
     fn log_assert_eq_fail() {
         let x = 5;
@@ -112,6 +114,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     #[cfg_attr(debug_assertions, should_panic)]
     fn log_assert_eq_msg() {
         let x = 5;

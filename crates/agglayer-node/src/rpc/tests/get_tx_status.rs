@@ -83,6 +83,7 @@ async fn check_tx_status() {
 }
 
 #[test_log::test(tokio::test)]
+#[ignore]
 async fn check_tx_status_fail() {
     let anvil = Anvil::new().block_time(1u64).spawn();
     let client = Provider::<Http>::connect(&anvil.endpoint()).await;

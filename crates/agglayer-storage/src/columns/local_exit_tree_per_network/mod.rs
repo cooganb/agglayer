@@ -1,3 +1,4 @@
+use agglayer_types::Hash;
 use serde::{Deserialize, Serialize};
 
 use super::{Codec, ColumnSchema, LOCAL_EXIT_TREE_PER_NETWORK_CF};
@@ -6,35 +7,27 @@ use super::{Codec, ColumnSchema, LOCAL_EXIT_TREE_PER_NETWORK_CF};
 ///
 /// ## Column definition
 ///
-/// | key                                       | value    |
-/// | --                                        | --       |
-/// | (`NetworkId`, `KeyType::LeafCount`)       | (`u32`)  |
-/// | (`NetworkId`, `KeyType::Leaf(index)`)     | (`Hash`) |
-/// | (`NetworkId`, `KeyType::Frontier(layer)`) | (`Hash`) |
+/// | key                             | value  |
+/// | --                              | --     |
+/// | (`NetworkId`, `Layer`, `Index`) | `Hash` |
 pub struct LocalExitTreePerNetworkColumn;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Key {
     pub(crate) network_id: u32,
-    pub(crate) key_type: KeyType,
+    pub(crate) layer: u32,
+    pub(crate) index: u32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum KeyType {
-    LeafCount,
-    Leaf(u32),
-    Frontier(u32),
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Prefix {
+    pub(crate) network_id: u32,
+    pub(crate) layer: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum Value {
-    LeafCount(u32),
-    Leaf([u8; 32]),
-    Frontier([u8; 32]),
-}
+pub type Value = Hash;
 
 impl Codec for Key {}
-impl Codec for Value {}
 
 impl ColumnSchema for LocalExitTreePerNetworkColumn {
     type Key = Key;
