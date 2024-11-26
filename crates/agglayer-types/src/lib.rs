@@ -344,6 +344,7 @@ impl LocalNetworkStateData {
         &mut self,
         certificate: &Certificate,
         vkey: [u32; 8],
+        consensus_config: Digest,
     ) -> Result<MultiBatchHeader<Keccak256Hasher>, Error> {
         let prev_balance_root = self.balance_tree.root;
         let prev_nullifier_root = self.nullifier_tree.root;
@@ -472,7 +473,8 @@ impl LocalNetworkStateData {
             prev_balance_root,
             prev_nullifier_root,
             vkey,
-            proof: certificate.proof.clone(),
+            consensus_config,
+            consensus_proof: certificate.proof.clone(),
             imported_exits_root: Some(imported_hash),
             target: StateCommitment {
                 exit_root: certificate.new_local_exit_root,
@@ -489,8 +491,10 @@ impl LocalNetworkStateData {
         &self,
         certificate: &Certificate,
         vkey: [u32; 8],
+        consensus_config: Digest,
     ) -> Result<MultiBatchHeader<Keccak256Hasher>, Error> {
-        self.clone().apply_certificate(certificate, vkey)
+        self.clone()
+            .apply_certificate(certificate, vkey, consensus_config)
     }
 
     pub fn get_roots(&self) -> StateCommitment {

@@ -240,6 +240,7 @@ impl LocalNetworkState {
         }
 
         // Verify that the signature is valid
+        // TODO: change this to SHA2 ?
         let combined_hash = signature_commitment(
             self.exit_tree.get_root(),
             multi_batch_header
@@ -248,8 +249,15 @@ impl LocalNetworkState {
                 .map(|(exit, _)| exit),
         );
 
+        // TODO: figure out what else needs to be a pv in the consensus proof.
+        let consensus_public_values = [
+            combined_hash.as_slice(),
+            multi_batch_header.consensus_config.as_slice(),
+        ]
+        .concat();
+
         let vkey = multi_batch_header.vkey;
-        let public_values_digest = Sha256::digest(&combined_hash); // TODO: figure out what else needs to be a pv in the consensus proof.
+        let public_values_digest = Sha256::digest(&consensus_public_values);
         verify_sp1_proof(&vkey, &public_values_digest.into());
 
         Ok(self.roots())

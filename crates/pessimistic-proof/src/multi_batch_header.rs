@@ -51,8 +51,10 @@ where
     pub balances_proofs: BTreeMap<TokenInfo, (U256, LocalBalancePath<H>)>,
     /// SP1 verification key for the consensus proof.
     pub vkey: [u32; 8],
+    /// Consensus config.
+    pub consensus_config: Digest,
     /// Consensus proof.
-    pub proof: SP1Proof,
+    pub consensus_proof: SP1Proof,
     /// State commitment target hashes.
     pub target: StateCommitment,
 }
@@ -73,7 +75,8 @@ where
         prev_balance_root: H::Digest,
         prev_nullifier_root: H::Digest,
         vkey: [u32; 8],
-        proof: SP1Proof,
+        consensus_config: Digest,
+        consensus_proof: SP1Proof,
         target: StateCommitment,
         l1_info_root: H::Digest,
     ) -> Self {
@@ -87,7 +90,8 @@ where
             prev_balance_root,
             prev_nullifier_root,
             vkey,
-            proof,
+            consensus_config,
+            consensus_proof,
             target,
             l1_info_root,
         }

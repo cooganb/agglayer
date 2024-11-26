@@ -156,6 +156,7 @@ pub fn generate_pessimistic_proof(
     let consensus_hash = keccak256_combine([
         &PESSIMISTIC_CONSENSUS_TYPE.to_be_bytes(),
         words_to_bytes_le(&batch_header.vkey).as_slice(),
+        batch_header.consensus_config.as_slice(),
     ]);
 
     let new_pessimistic_root = keccak256_combine([
