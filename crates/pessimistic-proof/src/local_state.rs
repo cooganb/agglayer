@@ -2,6 +2,8 @@ use std::collections::{btree_map::Entry, BTreeMap};
 
 use reth_primitives::{alloy_primitives::U512, ruint::UintTryFrom, B256, U256};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest as Sha256Digest, Sha256};
+use sp1_zkvm::lib::verify::verify_sp1_proof;
 
 use crate::{
     bridge_exit::{LeafType, L1_ETH, L1_NETWORK_ID},
@@ -246,18 +248,9 @@ impl LocalNetworkState {
                 .map(|(exit, _)| exit),
         );
 
-        // Check batch header signature
-        let signer = multi_batch_header
-            .signature
-            .recover_signer(B256::new(combined_hash))
-            .ok_or(ProofError::InvalidSignature)?;
-
-        if signer != multi_batch_header.signer {
-            return Err(ProofError::InvalidSigner {
-                declared: multi_batch_header.signer,
-                recovered: signer,
-            });
-        }
+        let vkey = multi_batch_header.vkey;
+        let public_values_digest = Sha256::digest(&combined_hash); // TODO: figure out what else needs to be a pv in the consensus proof.
+        verify_sp1_proof(&vkey, &public_values_digest.into());
 
         Ok(self.roots())
     }

@@ -4,6 +4,7 @@ use std::{borrow::Borrow, collections::BTreeMap, hash::Hash};
 use reth_primitives::{Address, Signature, U256};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::serde_as;
+use sp1_sdk::SP1Proof;
 
 use crate::{
     bridge_exit::{BridgeExit, NetworkId, TokenInfo},
@@ -17,7 +18,7 @@ use crate::{
 
 /// Represents the chain state transition for the pessimistic proof.
 #[serde_as]
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MultiBatchHeader<H>
 where
     H: Hasher,
@@ -48,10 +49,10 @@ where
     /// Token balances of the origin network before processing bridge events,
     /// with Merkle proofs of these balances in the local balance tree.
     pub balances_proofs: BTreeMap<TokenInfo, (U256, LocalBalancePath<H>)>,
-    /// Signer committing to the state transition.
-    pub signer: Address,
-    /// Signature committing to the state transition.
-    pub signature: Signature,
+    /// SP1 verification key for the consensus proof.
+    pub vkey: [u32; 8],
+    /// Consensus proof.
+    pub proof: SP1Proof,
     /// State commitment target hashes.
     pub target: StateCommitment,
 }
@@ -71,8 +72,8 @@ where
         balances_proofs: BTreeMap<TokenInfo, (U256, LocalBalancePath<H>)>,
         prev_balance_root: H::Digest,
         prev_nullifier_root: H::Digest,
-        signer: Address,
-        signature: Signature,
+        vkey: [u32; 8],
+        proof: SP1Proof,
         target: StateCommitment,
         l1_info_root: H::Digest,
     ) -> Self {
@@ -85,8 +86,8 @@ where
             balances_proofs,
             prev_balance_root,
             prev_nullifier_root,
-            signer,
-            signature,
+            vkey,
+            proof,
             target,
             l1_info_root,
         }
