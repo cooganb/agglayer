@@ -16,6 +16,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 
 [workspace.dependencies]
 anyhow = "1.0.93"
+alloy-primitives = { version = "0.8.12", features = ["serde", "k256"] }
 arc-swap = "1.7.1"
 async-trait = "0.1.82"
 base64 = "0.22.0"

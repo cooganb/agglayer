@@ -1,4 +1,5 @@
 use agglayer_types::{Certificate, LocalNetworkStateData};
+use alloy_primitives::{Address, Signature, U256};
 use ethers_signers::{LocalWallet, Signer};
 use pessimistic_proof::{
     bridge_exit::{BridgeExit, LeafType, NetworkId, TokenInfo},
@@ -27,11 +28,11 @@ pub fn compute_signature_info(
     let wallet = LocalWallet::new(&mut thread_rng());
     let signer = wallet.address();
     let signature = wallet.sign_hash(combined_hash.into()).unwrap();
-    let signature = Signature {
-        r: U256::from_limbs(signature.r.0),
-        s: U256::from_limbs(signature.s.0),
-        odd_y_parity: signature.recovery_id().unwrap().is_y_odd(),
-    };
+    let signature = Signature::new(
+        U256::from_limbs(signature.r.0),
+        U256::from_limbs(signature.s.0),
+        signature.recovery_id().unwrap().into(),
+    );
 
     (combined_hash, signer.0.into(), signature)
 }
@@ -236,7 +237,7 @@ fn exit(token_info: TokenInfo, dest_network: NetworkId, amount: U256) -> BridgeE
         leaf_type: LeafType::Transfer,
         token_info,
         dest_network,
-        dest_address: random(),
+        dest_address: random::<[u8; 20]>().into(),
         amount,
         metadata: vec![],
     }

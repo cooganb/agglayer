@@ -1,5 +1,5 @@
+use alloy_primitives::Address;
 pub use bincode::Options;
-use reth_primitives::Address;
 use serde::{Deserialize, Serialize};
 use sp1_zkvm::lib::utils::words_to_bytes_le;
 use thiserror::Error;

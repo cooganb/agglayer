@@ -1,6 +1,6 @@
 use std::collections::{btree_map::Entry, BTreeMap};
 
-use reth_primitives::{alloy_primitives::U512, ruint::UintTryFrom, B256, U256};
+use alloy_primitives::{ruint::UintTryFrom, B256, U256, U512};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as Sha256Digest, Sha256};
 use sp1_zkvm::lib::verify::verify_sp1_proof;
@@ -36,6 +36,7 @@ pub struct StateCommitment {
     pub balance_root: Digest,
     pub nullifier_root: Digest,
 }
+
 impl StateCommitment {
     pub fn display_to_hex(&self) -> String {
         format!(

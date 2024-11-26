@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use std::{borrow::Borrow, collections::BTreeMap, hash::Hash};
 
-use reth_primitives::{Address, Signature, U256};
+use alloy_primitives::{Address, Signature, U256};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::serde_as;
 use sp1_sdk::SP1Proof;
