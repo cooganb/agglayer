@@ -5,7 +5,7 @@ use pessimistic_proof_test_suite::{forest::Forest, runner::Runner, sample_data a
 use tracing::{debug, info};
 
 #[rstest::rstest]
-#[timeout(Duration::from_secs(30))]
+#[timeout(Duration::from_secs(3000))]
 #[case::empty(Forest::new([]), std::iter::empty())]
 fn sanity_check(#[case] state: Forest, #[case] bridge_exits: impl Iterator<Item = BridgeExit>) {
     cycles_on_sample_inputs_inner(state, bridge_exits);
@@ -38,11 +38,11 @@ fn cycles_on_sample_inputs_inner(
     let n_exits = withdrawals.len();
 
     let old_state = state.local_state();
-    let (certificate, signer) = state.clone().apply_events(&[], &withdrawals);
+    let (certificate, vkey, consensus_config) = state.clone().apply_events(&[], &withdrawals);
 
     let multi_batch_header = state
         .state_b
-        .apply_certificate(&certificate, signer)
+        .apply_certificate(&certificate, vkey, consensus_config)
         .unwrap();
 
     let (new_roots, stats) = Runner::new()

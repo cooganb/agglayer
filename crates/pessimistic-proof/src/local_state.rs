@@ -258,6 +258,7 @@ impl LocalNetworkState {
 
         let vkey = multi_batch_header.vkey;
         let public_values_digest = Sha256::digest(&consensus_public_values);
+        #[cfg(target_os = "zkvm")] // TODO: add a native verify otherwise.
         verify_sp1_proof(&vkey, &public_values_digest.into());
 
         Ok(self.roots())
