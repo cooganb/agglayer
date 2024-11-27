@@ -22,4 +22,3 @@ tag = "ecdsa-v0.16.9-patch-v1"
 [patch.crates-io.tiny-keccak]
 git = "https://github.com/sp1-patches/tiny-keccak"
 tag = "tiny_keccak-v2.0.2-patch-v1"
->>>>>>> f6b7bca (build: port primitives to `alloy` + remove sp1 hack)
