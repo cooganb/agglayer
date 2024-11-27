@@ -8,7 +8,7 @@ use std::{
 
 use agglayer_types::{Certificate, CertificateIndex, EpochNumber, Height, NetworkId, Proof};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use rocksdb::ReadOptions;
+use rocksdb::{DBWALIterator, ReadOptions};
 use tracing::{debug, error, warn};
 
 use super::{
@@ -56,6 +56,104 @@ impl<PendingStore, StateStore> PerEpochStore<PendingStore, StateStore> {
             .join(format!("{}", epoch_number));
 
         let db = Arc::new(DB::open_cf(&path, epochs_db_cf_definitions())?);
+
+        let start_checkpoint = {
+            let checkpoint = db
+                .iter_with_direction::<StartCheckpointColumn>(
+                    ReadOptions::default(),
+                    rocksdb::Direction::Forward,
+                )?
+                .filter_map(|v| v.ok())
+                .collect::<BTreeMap<NetworkId, Height>>();
+
+            match optional_start_checkpoint {
+                Some(expected_start_checkpoint) => {
+                    if checkpoint.is_empty() {
+                        db.multi_insert::<StartCheckpointColumn>(&expected_start_checkpoint)?;
+                        expected_start_checkpoint
+                    } else if checkpoint != expected_start_checkpoint {
+                        warn!(
+                            "Start checkpoint doesn't match the expected one, using the one from \
+                             the DB"
+                        );
+                        return Err(Error::Unexpected(
+                            "Start checkpoint doesn't match the expected one, using the one from \
+                             the DB"
+                                .to_string(),
+                        ))?;
+                    } else {
+                        checkpoint
+                    }
+                }
+                None => checkpoint,
+            }
+        };
+
+        let mut closed = None;
+        let next_certificate_index = if let Some(Ok((index, _))) = db
+            .iter_with_direction::<CertificatePerIndexColumn>(
+                ReadOptions::default(),
+                rocksdb::Direction::Reverse,
+            )?
+            .next()
+        {
+            AtomicU64::new(index)
+        } else {
+            AtomicU64::new(0)
+        };
+
+        let end_checkpoint = {
+            let checkpoint = db
+                .iter_with_direction::<EndCheckpointColumn>(
+                    ReadOptions::default(),
+                    rocksdb::Direction::Forward,
+                )?
+                .filter_map(|v| v.ok())
+                .collect::<BTreeMap<NetworkId, Height>>();
+
+            if checkpoint.is_empty() {
+                if next_certificate_index.load(Ordering::Relaxed) != 0 {
+                    return Err(Error::Unexpected(
+                        "End checkpoint is empty, but there are certificates in the DB".to_string(),
+                    ))?;
+                }
+
+                db.multi_insert::<EndCheckpointColumn>(&start_checkpoint)?;
+
+                start_checkpoint.clone()
+            } else {
+                closed = Some(epoch_number);
+
+                checkpoint
+            }
+        };
+
+        Ok(Self {
+            epoch_number: Arc::new(epoch_number),
+            db,
+            next_certificate_index,
+            pending_store,
+            state_store,
+            start_checkpoint,
+            end_checkpoint: RwLock::new(end_checkpoint),
+            packing_lock: RwLock::new(closed),
+        })
+    }
+
+    pub fn try_open_read_only(
+        config: Arc<agglayer_config::Config>,
+        epoch_number: u64,
+        pending_store: Arc<PendingStore>,
+        state_store: Arc<StateStore>,
+        optional_start_checkpoint: Option<BTreeMap<NetworkId, Height>>,
+    ) -> Result<Self, Error> {
+        // TODO: refactor this
+        let path = config
+            .storage
+            .epochs_db_path
+            .join(format!("{}", epoch_number));
+
+        let db = Arc::new(DB::open_cf_read_only(&path, epochs_db_cf_definitions())?);
 
         let start_checkpoint = {
             let checkpoint = db

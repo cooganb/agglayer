@@ -38,6 +38,16 @@ impl DB {
         })
     }
 
+    pub fn open_cf_read_only(path: &Path, cfs: Vec<ColumnFamilyDescriptor>) -> Result<DB, Error> {
+        let mut options = Options::default();
+        options.create_if_missing(true);
+        options.create_missing_column_families(true);
+
+        Ok(DB {
+            rocksdb: rocksdb::DB::open_cf_descriptors_read_only(&options, path, cfs, false)?,
+        })
+    }
+
     /// Try to get the value for the given key.
     pub fn get<C: ColumnSchema>(&self, key: &C::Key) -> Result<Option<C::Value>, Error> {
         let key = key.encode()?;

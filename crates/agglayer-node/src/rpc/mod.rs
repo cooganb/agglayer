@@ -4,8 +4,10 @@ use agglayer_config::epoch::BlockClockConfig;
 use agglayer_config::Config;
 use agglayer_config::Epoch;
 use agglayer_storage::columns::latest_settled_certificate_per_network::SettledCertificate;
+use agglayer_storage::stores::per_epoch::PerEpochStore;
 use agglayer_storage::stores::PendingCertificateReader;
 use agglayer_storage::stores::PendingCertificateWriter;
+use agglayer_storage::stores::PerEpochReader;
 use agglayer_storage::stores::StateReader;
 use agglayer_storage::stores::StateWriter;
 use agglayer_telemetry::KeyValue;
@@ -42,6 +44,8 @@ mod tests;
 
 #[rpc(server, namespace = "interop")]
 trait Agglayer {
+    #[method(name = "getCertificate")]
+    async fn get_certificate(&self, certificate_id: CertificateId) -> RpcResult<Certificate>;
     #[method(name = "sendTx")]
     async fn send_tx(&self, tx: SignedTx) -> RpcResult<H256>;
 
@@ -450,6 +454,66 @@ where
             }
         } else {
             Ok(None)
+        }
+    }
+
+    async fn get_certificate(&self, certificate_id: CertificateId) -> RpcResult<Certificate> {
+        let header = self.state.get_certificate_header(&certificate_id).unwrap();
+        match header {
+            Some(CertificateHeader {
+                epoch_number: Some(epoch_number),
+                certificate_index: Some(index),
+                ..
+            }) => {
+                match PerEpochStore::try_open_read_only(
+                    self.config.clone(),
+                    epoch_number,
+                    self.pending_store.clone(),
+                    self.state.clone(),
+                    None,
+                ) {
+                    Ok(db) => {
+                        info!("Opened per-epoch store for epoch {}", epoch_number);
+
+                        match db.get_certificate_at_index(index) {
+                            Ok(Some(cert)) => Ok(cert),
+                            Ok(_) => Err(Error::resource_not_found(format!(
+                                "Certificate({})",
+                                certificate_id
+                            ))),
+                            Err(e) => Err(Error::internal(e.to_string())),
+                        }
+                    }
+                    Err(e) => Err(Error::internal(e.to_string())),
+                }
+            }
+            Some(CertificateHeader {
+                network_id, height, ..
+            }) => match self.pending_store.get_certificate(network_id, height) {
+                Ok(Some(cert)) => {
+                    if cert.hash() != certificate_id {
+                        info!(
+                            "Certificate({}) not found in the pending store",
+                            certificate_id
+                        );
+
+                        return Err(Error::resource_not_found(format!(
+                            "Certificate({})",
+                            certificate_id
+                        )));
+                    }
+                    Ok(cert)
+                }
+                Ok(_) => Err(Error::resource_not_found(format!(
+                    "Certificate({})",
+                    certificate_id
+                ))),
+                Err(e) => Err(Error::internal(e.to_string())),
+            },
+            None => Err(Error::resource_not_found(format!(
+                "Certificate({})",
+                certificate_id
+            ))),
         }
     }
 }
