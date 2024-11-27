@@ -1,10 +1,12 @@
-use std::{path::PathBuf, time::Instant};
+use std::{collections::BTreeMap, path::PathBuf, time::Instant};
 
-use agglayer_types::{Certificate, U256};
+use agglayer_types::{Certificate, LocalNetworkStateData, U256};
 use clap::Parser;
 use pessimistic_proof::{
     bridge_exit::{NetworkId, TokenInfo},
-    PessimisticProofOutput,
+    generate_pessimistic_proof,
+    global_index::GlobalIndex,
+    LocalNetworkState, PessimisticProofOutput,
 };
 use pessimistic_proof_test_suite::{
     runner::Runner,
@@ -60,8 +62,75 @@ pub fn main() {
     let args = PPGenArgs::parse();
 
     let mut state = data::sample_state_00();
-
     let old_state = state.state_b.clone();
+
+    let mut certificates: Vec<Certificate> = [
+        "n15-cert_h0.json",
+        "n15-cert_h1.json",
+        "n15-cert_h2-v2.json",
+        "n15-cert_h3-v2.json",
+    ]
+    .iter()
+    .map(|p| data::load_certificate(p))
+    .collect();
+
+    let mut lns = LocalNetworkStateData::default();
+    let mut nullifier: BTreeMap<GlobalIndex, usize> = BTreeMap::new();
+
+    // Error during certification process of
+    // 0x059fae19d364f09e954a7252ac23e7320b6e1f0b97a79298c2eb04015f3a7cb1: native
+    // execution failed: InvalidNewBalanceRoot { declared:
+    // a0d47f6ba5be0c44914a657868206c9847536230102abcb59a76812f1926dadf, computed:
+    // 2c82837a204270bb078669e019992cd06a77393d843878df023d9a7fb5327829 }
+    certificates[3].prev_local_exit_root = certificates[2].new_local_exit_root;
+    for (idx, certificate) in certificates.iter().enumerate() {
+        info!(
+            "Certificate ({idx}|{}) | {}, nib:{} b:{}",
+            certificate.height,
+            certificate.hash(),
+            certificate.imported_bridge_exits.len(),
+            certificate.bridge_exits.len(),
+        );
+
+        let signer = certificate.signer().unwrap();
+        let l1_info_root = certificate.l1_info_root().unwrap().unwrap_or_default();
+
+        info!(
+            "Certificate ({idx}|{}) | signer: {}",
+            certificate.height, signer
+        );
+        for ib in &certificate.imported_bridge_exits {
+            // let u256global_index: U256 = ib.global_index.into();
+            // info!(
+            //     "cert {idx} claim ib: ({}) {:?}",
+            //     u256global_index, ib.global_index,
+            // );
+            if !nullifier.contains_key(&ib.global_index) {
+                nullifier.insert(ib.global_index, idx);
+            } else {
+                info!(
+                    "Certificate {} tries to claim {:?} but already claimed by certificate {}",
+                    idx,
+                    ib.global_index,
+                    nullifier.get(&ib.global_index).unwrap()
+                );
+            }
+        }
+        let multi_batch_header = lns
+            .make_multi_batch_header(&certificate, signer, l1_info_root)
+            .unwrap();
+
+        info!("Certificate {idx}: successful witness generation");
+
+        let initial_state = LocalNetworkState::from(lns.clone());
+
+        generate_pessimistic_proof(initial_state, &multi_batch_header).unwrap();
+        info!("Certificate {idx}: successful native execution");
+
+        lns.apply_certificate(&certificate, signer, l1_info_root)
+            .unwrap();
+        info!("Certificate {idx}: successful state transition, waiting for the next");
+    }
 
     let bridge_exits = get_events(args.n_exits, args.sample_path.clone());
     let imported_bridge_exits = get_events(args.n_imported_exits, args.sample_path);
