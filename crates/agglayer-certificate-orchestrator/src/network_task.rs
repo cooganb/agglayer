@@ -12,7 +12,6 @@ use agglayer_types::{
     Certificate, CertificateId, CertificateStatus, CertificateStatusError, Hash, Height,
     LocalNetworkStateData, NetworkId,
 };
-use pessimistic_proof::local_state;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};

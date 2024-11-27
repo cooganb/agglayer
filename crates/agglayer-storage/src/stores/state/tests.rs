@@ -135,3 +135,43 @@ fn can_detect_inconsistent_state(network_id: NetworkId, store: StateStore) {
         Err(Error::InconsistentState { .. })
     ));
 }
+
+#[rstest]
+fn can_read() {
+    let db_path = std::path::Path::new("/home/mhadji/agglayer/agglayer/data/");
+    let db = Arc::new(DB::open_cf(&db_path.join("state"), state_db_cf_definitions()).unwrap());
+
+    let store = StateStore::new(db.clone());
+    let network_id: NetworkId = 15.into();
+    let read_state = store.read_local_network_state(network_id);
+    println!("{:?}", read_state);
+    assert!(matches!(read_state, Ok(Some(_))));
+}
+
+use pessimistic_proof_test_suite::{
+    forest::Forest,
+    sample_data::{self as data},
+};
+
+#[rstest]
+fn can_fail_state(network_id: NetworkId, store: StateStore) {
+    let cached = false;
+    let forest: Forest = data::sample_state_01();
+
+    // write initial non-empty state
+    let state = forest.state_b;
+    assert!(store
+        .write_local_network_state(&network_id, &state, &[])
+        .is_ok());
+
+    // insertion into balance smt
+    
+
+    // store again
+    let read_state = store.read_local_network_state_inner(network_id, cached);
+
+    // read again
+
+    println!("{:?}", read_state);
+    assert!(matches!(read_state, Ok(Some(_))));
+}

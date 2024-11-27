@@ -8,7 +8,7 @@ use std::{
 
 use agglayer_types::{Certificate, CertificateIndex, EpochNumber, Height, NetworkId, Proof};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use rocksdb::{DBWALIterator, ReadOptions};
+use rocksdb::ReadOptions;
 use tracing::{debug, error, warn};
 
 use super::{
