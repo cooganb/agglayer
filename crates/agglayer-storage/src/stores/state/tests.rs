@@ -157,7 +157,6 @@ fn can_read(network_id: NetworkId, store: StateStore) {
     let mut leaves: Vec<Hash> = Vec::new();
     let mut lns = LocalNetworkStateData::default();
 
-    //certificates[3].prev_local_exit_root = certificates[2].new_local_exit_root;
     for (idx, certificate) in certificates.iter().enumerate() {
         info!(
             "Certificate ({idx}|{}) | {}, nib:{} b:{}",
@@ -189,29 +188,49 @@ fn can_read(network_id: NetworkId, store: StateStore) {
         info!("Certificate {idx}: successful state transition, waiting for the next");
     }
 
-    let before_going_through_disk = lns.clone();
+    let mut before_going_through_disk = lns.clone();
 
     println!(
-        "before | root: {}, nb nodes: {}",
+        "before DB | root: {}, nb nodes: {}",
         Hash(before_going_through_disk.balance_tree.root),
         before_going_through_disk.balance_tree.tree.len()
     );
+
+    before_going_through_disk
+        .balance_tree
+        .traverse_and_prune()
+        .unwrap();
+    before_going_through_disk
+        .nullifier_tree
+        .traverse_and_prune()
+        .unwrap();
+
+    println!(
+        "before DB (pruned) | root: {}, nb nodes: {}",
+        Hash(before_going_through_disk.balance_tree.root),
+        before_going_through_disk.balance_tree.tree.len()
+    );
+
     // write state
     assert!(store
         .write_local_network_state(&network_id, &lns, leaves.as_slice())
         .is_ok());
 
     // read state
-    let after_going_through_disk = store.read_local_network_state_inner(network_id, cached);
+    let after_going_through_disk = store
+        .read_local_network_state_inner(network_id, cached)
+        .unwrap()
+        .unwrap();
 
-    // println!(
-    //     "after | root: {}, nb nodes: {}",
-    //     Hash(after_going_through_disk.balance_tree.root),
-    //     after_going_through_disk.balance_tree.tree.len()
-    // );
+    println!(
+        "after DB | root: {}, nb nodes: {}",
+        Hash(after_going_through_disk.balance_tree.root),
+        after_going_through_disk.balance_tree.tree.len()
+    );
     // check that the read succeed and is equal to the state prior to passing by
     // the disk
-    assert!(
-        matches!(after_going_through_disk, Ok(Some(retrieved)) if equal_state(&before_going_through_disk, &retrieved))
-    );
+    assert!(equal_state(
+        &before_going_through_disk,
+        &after_going_through_disk
+    ));
 }
