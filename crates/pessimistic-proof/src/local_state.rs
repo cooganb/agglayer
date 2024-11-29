@@ -1,6 +1,6 @@
 use std::collections::{btree_map::Entry, BTreeMap};
 
-use alloy_primitives::{ruint::UintTryFrom, B256, U256, U512};
+use alloy_primitives::{ruint::UintTryFrom, U256, U512};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as Sha256Digest, Sha256};
 use sp1_zkvm::lib::verify::verify_sp1_proof;
@@ -261,6 +261,9 @@ impl LocalNetworkState {
         let public_values_digest = Sha256::digest(&consensus_public_values);
         #[cfg(target_os = "zkvm")] // TODO: add a native verify otherwise.
         verify_sp1_proof(&vkey, &public_values_digest.into());
+
+        // TODO: add native verification for the consensus proof if
+        // `not(target_os="zkvm")`.
 
         Ok(self.roots())
     }

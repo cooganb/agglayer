@@ -138,7 +138,10 @@ impl PessimisticProofOutput {
     }
 }
 
-const PESSIMISTIC_CONSENSUS_TYPE: u32 = 0;
+enum PessimisticConsensusType {
+    Ecdsa = 0,
+    Sp1 = 1,
+}
 
 /// Proves that the given [`MultiBatchHeader`] can be applied on the given
 /// [`LocalNetworkState`].
@@ -154,7 +157,7 @@ pub fn generate_pessimistic_proof(
     let prev_pessimistic_root = keccak256_combine([prev_lbr, prev_nr]);
 
     let consensus_hash = keccak256_combine([
-        &PESSIMISTIC_CONSENSUS_TYPE.to_be_bytes(),
+        &(PessimisticConsensusType::Sp1 as u32).to_be_bytes(),
         words_to_bytes_le(&batch_header.vkey).as_slice(),
         batch_header.consensus_config.as_slice(),
     ]);
