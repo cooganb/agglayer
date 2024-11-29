@@ -6,7 +6,7 @@ use pessimistic_proof_test_suite::{
     PESSIMISTIC_PROOF_ELF,
 };
 use rand::random;
-use sp1_sdk::{utils, ProverClient, SP1Stdin};
+use sp1_sdk::{utils, HashableKey, ProverClient, SP1Stdin};
 
 fn u(x: u64) -> U256 {
     x.try_into().unwrap()
@@ -25,10 +25,11 @@ fn e2e_local_pp_simple_helper(
     dbg!(2);
     let initial_state = forest.state_b.clone();
     dbg!(3);
-    let (certificate, vkey, consensus_config) = forest.apply_events(&imported_events, &events);
+    let (certificate, vkey, consensus_config, _proof) =
+        forest.apply_events(&imported_events, &events);
     dbg!(4);
     let multi_batch_header = initial_state
-        .make_multi_batch_header(&certificate, vkey, consensus_config)
+        .make_multi_batch_header(&certificate, vkey.hash_u32(), consensus_config)
         .unwrap();
     dbg!(5);
     generate_pessimistic_proof(initial_state.into(), &multi_batch_header).unwrap();
@@ -89,10 +90,10 @@ fn e2e_local_pp_random() {
     let bridge_events = get_events();
 
     let initial_state = forest.state_b.clone();
-    let (certificate, vkey, consensus_config) =
+    let (certificate, vkey, consensus_config, _proof) =
         forest.apply_events(&imported_bridge_events, &bridge_events);
     let multi_batch_header = initial_state
-        .make_multi_batch_header(&certificate, vkey, consensus_config)
+        .make_multi_batch_header(&certificate, vkey.hash_u32(), consensus_config)
         .unwrap();
 
     generate_pessimistic_proof(initial_state.into(), &multi_batch_header).unwrap();
@@ -110,16 +111,17 @@ fn test_sp1_simple() {
     let bridge_events = vec![(*USDC, u(20)), (*ETH, u(50)), (*USDC, u(130))];
 
     let initial_state = forest.state_b.clone();
-    let (certificate, vkey, consensus_config) =
+    let (certificate, vkey, consensus_config, consensus_proof) =
         forest.apply_events(&imported_bridge_events, &bridge_events);
     let multi_batch_header = initial_state
-        .make_multi_batch_header(&certificate, vkey, consensus_config)
+        .make_multi_batch_header(&certificate, vkey.hash_u32(), consensus_config)
         .unwrap();
 
     let initial_state = LocalNetworkState::from(initial_state);
     let mut stdin = SP1Stdin::new();
     stdin.write(&initial_state);
     stdin.write(&multi_batch_header);
+    stdin.write_proof(*consensus_proof.try_as_compressed().unwrap(), vkey.vk);
 
     // Generate the proof for the given program and input.
     let client = ProverClient::new();

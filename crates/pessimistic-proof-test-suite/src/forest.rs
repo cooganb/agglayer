@@ -15,8 +15,7 @@ use pessimistic_proof::{
     LocalNetworkState, PessimisticProofOutput,
 };
 use rand::{random, thread_rng};
-use reth_primitives::{Address, Signature, U256};
-use sp1_sdk::{HashableKey, ProverClient, SP1Proof, SP1Stdin};
+use sp1_sdk::{HashableKey, ProverClient, SP1Proof, SP1Stdin, SP1VerifyingKey};
 
 use super::sample_data::{NETWORK_A, NETWORK_B};
 
@@ -40,16 +39,21 @@ pub fn compute_signature_info(
 pub fn compute_consensus_proof(
     new_local_exit_root: Digest,
     imported_bridge_exits: &[ImportedBridgeExit],
-) -> (Digest, SP1Proof, [u32; 8], [u8; 32]) {
+) -> (Digest, SP1Proof, SP1VerifyingKey, [u8; 32]) {
     let combined_hash = signature_commitment(new_local_exit_root, imported_bridge_exits);
     let wallet = LocalWallet::new(&mut thread_rng());
     let signer = wallet.address();
     let signature = wallet.sign_hash(combined_hash.into()).unwrap();
-    let signature = Signature {
-        r: U256::from_limbs(signature.r.0),
-        s: U256::from_limbs(signature.s.0),
-        odd_y_parity: signature.recovery_id().unwrap().is_y_odd(),
-    };
+    // let signature = Signature {
+    //     r: U256::from_limbs(signature.r.0),
+    //     s: U256::from_limbs(signature.s.0),
+    //     odd_y_parity: signature.recovery_id().unwrap().is_y_odd(),
+    // };
+    let signature = Signature::new(
+        U256::from_limbs(signature.r.0),
+        U256::from_limbs(signature.s.0),
+        signature.recovery_id().unwrap().into(),
+    );
 
     let mut public_values = vec![0; 64];
     public_values[..32].copy_from_slice(&combined_hash);
@@ -57,10 +61,10 @@ pub fn compute_consensus_proof(
     let mut consensus_config = [0; 32];
     consensus_config[12..32].copy_from_slice(signer.0.as_slice());
 
-    // See https://gist.github.com/wborgeaud/69864ef735aa94ab3a3ed643338f3866 for the program.
-    const ELF: &[u8] = include_bytes!("../ecdsa-proof-program/riscv32im-succinct-zkvm-elf");
+    const ELF: &[u8] =
+        include_bytes!("../ecdsa-proof-program/program/elf/riscv32im-succinct-zkvm-elf");
     let mut stdin = SP1Stdin::new();
-    stdin.write(&signature.to_bytes().to_vec());
+    stdin.write(&signature.as_bytes().to_vec());
     stdin.write(&public_values);
     let client = ProverClient::new();
     let (pk, vk) = client.setup(ELF);
@@ -70,7 +74,7 @@ pub fn compute_consensus_proof(
         .run()
         .expect("proving failed");
 
-    (combined_hash, proof.proof, vk.hash_u32(), consensus_config)
+    (combined_hash, proof.proof, vk, consensus_config)
 }
 
 /// Trees for the network B, as well as the LET for network A.
@@ -192,7 +196,7 @@ impl Forest {
         &mut self,
         imported_bridge_events: &[(TokenInfo, U256)],
         bridge_events: &[(TokenInfo, U256)],
-    ) -> (Certificate, [u32; 8], [u8; 32]) {
+    ) -> (Certificate, SP1VerifyingKey, [u8; 32], SP1Proof) {
         let prev_local_exit_root = self.state_b.exit_tree.get_root();
         let imported_bridge_exits = self.imported_bridge_exits(imported_bridge_events);
         let bridge_exits = self.bridge_exits(bridge_events);
@@ -209,11 +213,11 @@ impl Forest {
             new_local_exit_root,
             bridge_exits,
             imported_bridge_exits,
-            consensus_proof,
+            consensus_proof: (),
             metadata: Default::default(),
         };
 
-        (certificate, vkey, consensus_config)
+        (certificate, vkey, consensus_config, consensus_proof)
     }
 
     /// Check the current state corresponds to given proof output.

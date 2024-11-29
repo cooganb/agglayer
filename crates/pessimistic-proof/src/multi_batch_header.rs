@@ -4,8 +4,8 @@ use std::{borrow::Borrow, collections::BTreeMap, hash::Hash};
 use alloy_primitives::{Address, Signature, U256};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::serde_as;
-use sp1_sdk::SP1Proof;
 
+// use sp1_sdk::SP1Proof;
 use crate::{
     bridge_exit::{BridgeExit, NetworkId, TokenInfo},
     imported_bridge_exit::{commit_imported_bridge_exits, ImportedBridgeExit},
@@ -54,7 +54,7 @@ where
     /// Consensus config.
     pub consensus_config: Digest,
     /// Consensus proof.
-    pub consensus_proof: SP1Proof,
+    pub consensus_proof: (), // Should be `SP1Proof`, but it doesn't compile
     /// State commitment target hashes.
     pub target: StateCommitment,
 }
@@ -76,7 +76,7 @@ where
         prev_nullifier_root: H::Digest,
         vkey: [u32; 8],
         consensus_config: Digest,
-        consensus_proof: SP1Proof,
+        consensus_proof: (),
         target: StateCommitment,
         l1_info_root: H::Digest,
     ) -> Self {

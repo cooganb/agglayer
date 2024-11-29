@@ -66,7 +66,7 @@ pub fn main() {
     let bridge_exits = get_events(args.n_exits, args.sample_path.clone());
     let imported_bridge_exits = get_events(args.n_imported_exits, args.sample_path);
 
-    let (certificate, vkey, consensus_config) =
+    let (certificate, vkey, consensus_config, _proof) =
         state.apply_events(&imported_bridge_exits, &bridge_exits);
 
     info!(
@@ -76,7 +76,7 @@ pub fn main() {
     );
 
     let multi_batch_header = old_state
-        .make_multi_batch_header(&certificate, vkey, consensus_config)
+        .make_multi_batch_header(&certificate, vkey.hash_u32(), consensus_config)
         .unwrap();
 
     info!(
@@ -101,7 +101,7 @@ pub fn main() {
     let fixture = PessimisticProofFixture {
         certificate,
         pp_inputs: new_roots.into(),
-        signer: Address::random(), // TODO: fix this
+        signer: Address::default(), // TODO: fix this
         vkey: vkey.clone(),
         public_values: format!("0x{}", hex::encode(proof.public_values.as_slice())),
         proof: format!("0x{}", hex::encode(proof.bytes())),

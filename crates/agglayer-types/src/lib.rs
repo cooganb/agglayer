@@ -231,7 +231,7 @@ pub struct Certificate {
     /// List of imported bridge exits included in this state transition.
     pub imported_bridge_exits: Vec<ImportedBridgeExit>,
     /// Consensus proof.
-    pub consensus_proof: SP1Proof,
+    pub consensus_proof: (), // Should be `SP1Proof`, but it doesn't compile
     /// Fixed size field of arbitrary data for the chain needs.
     pub metadata: Metadata,
 }
@@ -255,8 +255,8 @@ impl Certificate {
             new_local_exit_root: [0; 32],
             bridge_exits: Vec::new(),
             imported_bridge_exits: Vec::new(),
-            signature: Signature::new(U256::default(), U256::default(), Default::default()),
             metadata: Default::default(),
+            consensus_proof: (),
         }
     }
 
@@ -478,7 +478,7 @@ impl LocalNetworkStateData {
             prev_nullifier_root,
             vkey,
             consensus_config,
-            consensus_proof: certificate.consensus_proof.clone(),
+            consensus_proof: (),
             imported_exits_root: Some(imported_hash),
             target: StateCommitment {
                 exit_root: certificate.new_local_exit_root,

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use pessimistic_proof::bridge_exit::BridgeExit;
 use pessimistic_proof_test_suite::{forest::Forest, runner::Runner, sample_data as data};
+use sp1_sdk::HashableKey;
 use tracing::{debug, info};
 
 #[rstest::rstest]
@@ -38,11 +39,12 @@ fn cycles_on_sample_inputs_inner(
     let n_exits = withdrawals.len();
 
     let old_state = state.local_state();
-    let (certificate, vkey, consensus_config) = state.clone().apply_events(&[], &withdrawals);
+    let (certificate, vkey, consensus_config, _proof) =
+        state.clone().apply_events(&[], &withdrawals);
 
     let multi_batch_header = state
         .state_b
-        .apply_certificate(&certificate, vkey, consensus_config)
+        .apply_certificate(&certificate, vkey.hash_u32(), consensus_config)
         .unwrap();
 
     let (new_roots, stats) = Runner::new()
