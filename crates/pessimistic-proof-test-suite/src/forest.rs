@@ -15,7 +15,7 @@ use pessimistic_proof::{
     LocalNetworkState, PessimisticProofOutput,
 };
 use rand::{random, thread_rng};
-use sp1_sdk::{HashableKey, ProverClient, SP1Proof, SP1Stdin, SP1VerifyingKey};
+use sp1_sdk::{ProverClient, SP1Proof, SP1Stdin, SP1VerifyingKey};
 
 use super::sample_data::{NETWORK_A, NETWORK_B};
 
@@ -44,11 +44,6 @@ pub fn compute_consensus_proof(
     let wallet = LocalWallet::new(&mut thread_rng());
     let signer = wallet.address();
     let signature = wallet.sign_hash(combined_hash.into()).unwrap();
-    // let signature = Signature {
-    //     r: U256::from_limbs(signature.r.0),
-    //     s: U256::from_limbs(signature.s.0),
-    //     odd_y_parity: signature.recovery_id().unwrap().is_y_odd(),
-    // };
     let signature = Signature::new(
         U256::from_limbs(signature.r.0),
         U256::from_limbs(signature.s.0),
@@ -201,8 +196,6 @@ impl Forest {
         let imported_bridge_exits = self.imported_bridge_exits(imported_bridge_events);
         let bridge_exits = self.bridge_exits(bridge_events);
         let new_local_exit_root = self.state_b.exit_tree.get_root();
-        // let (_combined_hash, signer, signature) =
-        //     compute_signature_info(new_local_exit_root, &imported_bridge_exits);
         let (_combined_hash, consensus_proof, vkey, consensus_config) =
             compute_consensus_proof(new_local_exit_root, &imported_bridge_exits);
 

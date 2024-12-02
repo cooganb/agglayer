@@ -16,6 +16,8 @@ use crate::{
     nullifier_tree::NullifierPath,
 };
 
+pub type Vkey = [u32; 8];
+
 /// Represents the chain state transition for the pessimistic proof.
 #[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -50,7 +52,7 @@ where
     /// with Merkle proofs of these balances in the local balance tree.
     pub balances_proofs: BTreeMap<TokenInfo, (U256, LocalBalancePath<H>)>,
     /// SP1 verification key for the consensus proof.
-    pub vkey: [u32; 8],
+    pub vkey: Vkey,
     /// Consensus config.
     pub consensus_config: Digest,
     /// Consensus proof.
@@ -74,7 +76,7 @@ where
         balances_proofs: BTreeMap<TokenInfo, (U256, LocalBalancePath<H>)>,
         prev_balance_root: H::Digest,
         prev_nullifier_root: H::Digest,
-        vkey: [u32; 8],
+        vkey: Vkey,
         consensus_config: Digest,
         consensus_proof: (),
         target: StateCommitment,

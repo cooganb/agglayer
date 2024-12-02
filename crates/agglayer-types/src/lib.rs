@@ -6,6 +6,7 @@ use pessimistic_proof::local_balance_tree::{LocalBalanceTree, LOCAL_BALANCE_TREE
 pub use pessimistic_proof::local_exit_tree::hasher::Keccak256Hasher;
 use pessimistic_proof::local_exit_tree::{LocalExitTree, LocalExitTreeError};
 use pessimistic_proof::local_state::StateCommitment;
+use pessimistic_proof::multi_batch_header::Vkey;
 use pessimistic_proof::nullifier_tree::{FromBool, NullifierTree, NULLIFIER_TREE_DEPTH};
 use pessimistic_proof::utils::smt::Smt;
 use pessimistic_proof::LocalNetworkState;
@@ -347,7 +348,7 @@ impl LocalNetworkStateData {
     pub fn apply_certificate(
         &mut self,
         certificate: &Certificate,
-        vkey: [u32; 8],
+        vkey: Vkey,
         consensus_config: Digest,
     ) -> Result<MultiBatchHeader<Keccak256Hasher>, Error> {
         let prev_balance_root = self.balance_tree.root;
@@ -494,7 +495,7 @@ impl LocalNetworkStateData {
     pub fn make_multi_batch_header(
         &self,
         certificate: &Certificate,
-        vkey: [u32; 8],
+        vkey: Vkey,
         consensus_config: Digest,
     ) -> Result<MultiBatchHeader<Keccak256Hasher>, Error> {
         self.clone()

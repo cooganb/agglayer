@@ -20,18 +20,13 @@ fn e2e_local_pp_simple_helper(
     let imported_events = imported_events.into_iter().collect::<Vec<_>>();
     let events = events.into_iter().collect::<Vec<_>>();
 
-    dbg!(1);
     let mut forest = Forest::new(initial_balances);
-    dbg!(2);
     let initial_state = forest.state_b.clone();
-    dbg!(3);
     let (certificate, vkey, consensus_config, _proof) =
         forest.apply_events(&imported_events, &events);
-    dbg!(4);
     let multi_batch_header = initial_state
         .make_multi_batch_header(&certificate, vkey.hash_u32(), consensus_config)
         .unwrap();
-    dbg!(5);
     generate_pessimistic_proof(initial_state.into(), &multi_batch_header).unwrap();
 }
 
