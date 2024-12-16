@@ -63,7 +63,7 @@ The crates and their functions within the Agglayer repo are as follows:
 
 | Crate                          | Description                                                                                                  |
 |--------------------------------|--------------------------------------------------------------------------------------------------------------|
-| agglayer-aggregator-notifier   | Contains certificate implementations for `certify` and `settled`, as well as `packer`, which handles the packing of an epoch |
+| agglayer-aggregator-notifier   | Contains implementations for [Certifier](crates/agglayer-certificate-orchestrator/src/certifier.rs#L29) which applies new [Certificate](crates/agglayer-types/src/lib.rs#245) on top of an existing state and computes the proof, as well as [EpochPacker](crates/agglayer-certificate-orchestrator/src/epoch_packer.rs#14), which handles the packing of an epoch |
 | agglayer-certificate-orchestrator | Manages the orchestration and handling of certificates; also handles `current_epoch`, which allows non-orchestrators to push a proven certificate |
 | agglayer-clock                 | Defines the pace of the Agglayer in terms of epoch with support for two clocks: time (for testing) and block (for listening for L1 blocks) |
 | agglayer-config                | Manages configuration settings and parameters for Agglayer components                                       |
