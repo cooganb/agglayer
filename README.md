@@ -55,7 +55,8 @@ Agglayer replaces the previous Golang implementation.
 
 To find out more about Agglayer, [please visit the docs.](https://docs.polygon.technology/agglayer/overview/)
 
-WARNING: This is a work in progress, and as such, all APIs and configuration are subject to change. The code is still being audited, so please contact the Polygon team if you would like to use it in production.
+!!! info "Disclaimer"
+    - Some of the content in this section discusses technology in development and not ready for release. As such, all APIs and configuration are subject to change. The code is still being audited, so please contact the Polygon team if you would like to use it in production.
 
 ## Crate Directory
 
